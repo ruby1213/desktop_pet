@@ -15,9 +15,11 @@ FLOOR_MARGIN        = 60
 PHYSICS_INTERVAL_MS = 16        # ~60 fps
 WALK_SPEED          = 1         # px per frame while walking
 PAUSE_INTERVAL_MIN  = 2000      # ms — min time walking before a random pause
-PAUSE_INTERVAL_MAX  = 5000      # ms — max time walking before a random pause
+PAUSE_INTERVAL_MAX  = 10000      # ms — max time walking before a random pause
 IDLE_DURATION_MIN   = 2000      # ms — min duration of each idle pause
 IDLE_DURATION_MAX   = 5000      # ms — max duration of each idle pause
+STUMBLE_INTERVAL_MIN = 10000     # ms — min time walking before a random stumble
+STUMBLE_INTERVAL_MAX = 100000     # ms — max time walking before a random stumble
 PET_SIZE            = 200
 SPRITE_MARGIN       = 80        # transparent padding inside the GIF on each side
                                 # tune this until the pet walks to the visible screen edge
@@ -32,6 +34,8 @@ ANIMATION_MAP = {
     "walk_to_left":  "./assets/walk_to_left.gif",
     "walk_to_right": "./assets/walk_to_right.gif",
     "falling":       "./assets/fall_left.gif",
+    "fall_left":     "./assets/fall_left.gif",
+    "fall_right":    "./assets/fall_right.gif",
     "die":           "./assets/die.gif",
     "dragged":       "./assets/drag.gif",
     "dropped":       "./assets/drop.gif",
@@ -83,10 +87,15 @@ class DesktopPet(QLabel):
         self.pause_end_timer.setSingleShot(True)
         self.pause_end_timer.timeout.connect(self._end_pause)
 
+        self.stumble_timer = QTimer()         # fires to trigger a random stumble/fall
+        self.stumble_timer.setSingleShot(True)
+        self.stumble_timer.timeout.connect(self._start_stumble)
+
         self.setup_window()
         self.setup_animation()
         self.setup_physics()
         self.setup_pause()
+        self.setup_stumble()
         self.show()
 
     # ------------------------------------------------------------------
@@ -174,6 +183,26 @@ class DesktopPet(QLabel):
         self.set_state(PetState.WALK_RIGHT)
         self._schedule_next_pause()
 
+    def setup_stumble(self):
+        """排程第一次隨機絆倒"""
+        self._schedule_next_stumble()
+
+    def _schedule_next_stumble(self):
+        """在 STUMBLE_INTERVAL_MIN ~ MAX ms 後觸發一次絆倒"""
+        interval = random.randint(STUMBLE_INTERVAL_MIN, STUMBLE_INTERVAL_MAX)
+        self.stumble_timer.start(interval)
+
+    def _start_stumble(self):
+        """隨機絆倒：只在地面行走時觸發，直接播 fall 動畫一次"""
+        if self.state not in (PetState.WALK_LEFT, PetState.WALK_RIGHT):
+            self._schedule_next_stumble()   # not walking, try again later
+            return
+        # Go directly to LANDING (pet is already on the ground)
+        # set_state(LANDING) plays the directional fall GIF once,
+        # then _on_landing_finished resumes walking
+        self.set_state(PetState.LANDING)
+        # reschedule happens inside _on_landing_finished after walk resumes
+
     # ------------------------------------------------------------------
     # State Machine
     # ------------------------------------------------------------------
@@ -195,7 +224,7 @@ class DesktopPet(QLabel):
             PetState.FALLING:    ("anim",   "falling"),
             PetState.DRAGGED:    ("anim", "dragged"),
             PetState.DROPPED:    ("anim", "dropped"),
-            PetState.LANDING:    ("once",   "falling"),   # fall.gif plays once
+            PetState.LANDING:    ("once_dir", f"fall_{self.last_walk_dir}"),  # directional fall, once
             PetState.DYING:      ("once",   "die"),       # die.gif plays once
             PetState.PAUSED:     ("idle_dir", f"idle_{self.last_walk_dir}"),
         }
@@ -206,6 +235,9 @@ class DesktopPet(QLabel):
             self._show_static(name)
         elif kind == "once":
             self._play_once(name)
+        elif kind == "once_dir":
+            # directional one-shot: fall back to generic "falling" if file missing
+            self._play_once(name, fallback="falling")
         elif kind == "idle_dir":
             # fall back to generic "idle" if directional idle GIF is missing
             self._play_animation(name, fallback="idle")
@@ -238,9 +270,11 @@ class DesktopPet(QLabel):
         movie.frameChanged.connect(lambda _: self.repaint())
         movie.start()
 
-    def _play_once(self, name: str):
+    def _play_once(self, name: str, fallback: str | None = None):
         """播放 GIF 一次，結束後依當前 state 觸發回呼"""
         movie = self.movies.get(name)
+        if movie is None and fallback:
+            movie = self.movies.get(fallback)
         if movie is None:
             # 沒有對應動畫時直接跳到下一步
             if self.state == PetState.LANDING:
@@ -290,17 +324,22 @@ class DesktopPet(QLabel):
     # One-shot callbacks
     # ------------------------------------------------------------------
     def _on_landing_finished(self):
-        """fall.gif 播完 → 開始行走"""
-        # 斷開信號，避免下次重用同一個 movie 時重複觸發
-        movie = self.movies.get("falling")
-        if movie:
-            try:
-                movie.finished.disconnect(self._on_landing_finished)
-            except (RuntimeError, TypeError):
-                pass
-        # 強制重設 state 讓 set_state 不會因為相同 state 而略過
-        self.state = PetState.LANDING
-        self.set_state(PetState.WALK_RIGHT)
+        """fall.gif 播完 → 繼續往同方向行走"""
+        # 斷開所有可能的 fall movie 信號
+        for key in ("falling", "fall_left", "fall_right"):
+            movie = self.movies.get(key)
+            if movie:
+                try:
+                    movie.finished.disconnect(self._on_landing_finished)
+                except (RuntimeError, TypeError):
+                    pass
+        # 落地後繼續往同方向走
+        resume_state = (
+            PetState.WALK_LEFT if self.last_walk_dir == "left" else PetState.WALK_RIGHT
+        )
+        self.state = PetState.LANDING   # 強制重設讓 set_state 不略過
+        self.set_state(resume_state)
+        self._schedule_next_stumble()   # reschedule after every landing
 
     # ------------------------------------------------------------------
     # Physics + Walking
@@ -384,6 +423,7 @@ class DesktopPet(QLabel):
         self.physics_timer.stop()
         self.pause_trigger_timer.stop()
         self.pause_end_timer.stop()
+        self.stumble_timer.stop()
         self.set_state(PetState.IDLE)
 
         menu = QMenu(self)
@@ -403,12 +443,14 @@ class DesktopPet(QLabel):
         self.set_state(PetState.WALK_RIGHT)
         self.physics_timer.start(PHYSICS_INTERVAL_MS)
         self._schedule_next_pause()
+        self._schedule_next_stumble()
 
     def _start_quit(self):
         """停止物理，播 die.gif 一次後關閉"""
         self.physics_timer.stop()
         self.pause_trigger_timer.stop()
         self.pause_end_timer.stop()
+        self.stumble_timer.stop()
         self.is_dragging = False
         # Directly call _play_once instead of going through set_state,
         # so DYING state is set AND movie starts atomically before
