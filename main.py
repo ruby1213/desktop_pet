@@ -11,16 +11,16 @@ from PyQt6.QtGui import QMovie, QAction, QPixmap, QPainter
 # ---------------------------------------------------------------------------
 GRAVITY             = 1
 MAX_FALL_SPEED      = 20
-FLOOR_MARGIN        = 60
-PHYSICS_INTERVAL_MS = 16        # ~60 fps
+FLOOR_MARGIN        = 70
+PHYSICS_INTERVAL_MS = 25        # ~60 fps
 WALK_SPEED          = 1         # px per frame while walking
 PAUSE_INTERVAL_MIN  = 2000      # ms — min time walking before a random pause
 PAUSE_INTERVAL_MAX  = 10000      # ms — max time walking before a random pause
 IDLE_DURATION_MIN   = 2000      # ms — min duration of each idle pause
-IDLE_DURATION_MAX   = 5000      # ms — max duration of each idle pause
+IDLE_DURATION_MAX   = 20000      # ms — max duration of each idle pause
 STUMBLE_INTERVAL_MIN = 10000     # ms — min time walking before a random stumble
 STUMBLE_INTERVAL_MAX = 100000     # ms — max time walking before a random stumble
-PET_SIZE            = 200
+PET_SIZE            = 80
 SPRITE_MARGIN       = 80        # transparent padding inside the GIF on each side
                                 # tune this until the pet walks to the visible screen edge
 PET_START_X         = 300
@@ -107,7 +107,9 @@ class DesktopPet(QLabel):
             Qt.WindowType.FramelessWindowHint  |
             Qt.WindowType.WindowStaysOnTopHint |
             Qt.WindowType.Tool
+            
         )
+        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         # Tell Qt this widget paints its own background — required for
         # transparent GIF frames to be cleared between each frame
@@ -222,8 +224,8 @@ class DesktopPet(QLabel):
             PetState.WALK_LEFT:  ("anim",   "walk_to_left"),
             PetState.WALK_RIGHT: ("anim",   "walk_to_right"),
             PetState.FALLING:    ("anim",   "falling"),
-            PetState.DRAGGED:    ("anim", "dragged"),
-            PetState.DROPPED:    ("anim", "dropped"),
+            PetState.DRAGGED:    ("anim",   "dragged"),
+            PetState.DROPPED:    ("anim",   "dropped"),
             PetState.LANDING:    ("once_dir", f"fall_{self.last_walk_dir}"),  # directional fall, once
             PetState.DYING:      ("once",   "die"),       # die.gif plays once
             PetState.PAUSED:     ("idle_dir", f"idle_{self.last_walk_dir}"),
