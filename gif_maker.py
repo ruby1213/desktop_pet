@@ -3,35 +3,32 @@ import re
 import numpy as np
 from PIL import Image
 
-def create_gif(folder, duration = 100, loop = 0, output_dir = None, mirror= False):
+def create_gif(directory, duration = 100, loop = 0, output_dir = None, mirror= False):
     """
-    Create a GIF from images in a folder, sorted by number in filename.
-    
-    Args:
-        folder (str): Folder containing images.
-        pattern (str): Separator pattern used in filenames. Defaults to "_".
-        duration (int): Duration per frame in milliseconds. Defaults to 100.
-        loop (int): Number of loops, 0 = infinite. Defaults to 0.
-        output_dir (str): Where to save the GIF. Defaults to parent of folder.
+    Create a GIF from images in a directory, sorted by number in filename.
     """
+    if not os.path.isdir(directory):
+        print(f"Not a directory: {directory}")
+        return
+
     # Collect image files
     valid_ext = (".png", ".jpg", ".jpeg", ".webp")
-    files = [ f for f in os.listdir(folder) if f.lower().endswith(valid_ext)]
+    files = [ f for f in os.listdir(directory) if f.lower().endswith(valid_ext)]
 
     if not files:
-        print(f"No images found in {folder}")
+        print(f"No images found in {directory}")
         return
-    
+
      # Sort by the number found in filename
     def sort_key(filename):
         numbers = re.findall(r"\d+",filename)
         return int(numbers[-1]) if numbers else 0
-    
+
     files.sort(key=sort_key)
     print(f"Frame order: {files}")
 
     # Load all frames first
-    raw_frames = [Image.open(os.path.join(folder,f)) for f in files]
+    raw_frames = [Image.open(os.path.join(directory,f)) for f in files]
 
     if mirror:
         raw_frames = [f.transpose(Image.FLIP_LEFT_RIGHT) for f in raw_frames]
@@ -45,7 +42,7 @@ def create_gif(folder, duration = 100, loop = 0, output_dir = None, mirror= Fals
 
     for img in raw_frames:
         canvas = Image.new("RGBA", (max_width, max_height),(0,0,0,0))
-        
+
         x = (max_width - img.width) // 2
         y = (max_height - img.height) // 2
 
@@ -68,9 +65,9 @@ def create_gif(folder, duration = 100, loop = 0, output_dir = None, mirror= Fals
 
 
     # Output path
-    folder_name = os.path.basename(folder)
-    output_dir = output_dir or os.path.dirname(folder)
-    gif_name = f"{folder_name}-mirror.gif" if mirror else f"{folder_name}.gif"
+    dir_name = os.path.basename(directory)
+    output_dir = output_dir or os.path.dirname(directory)
+    gif_name = f"{dir_name}-mirror.gif" if mirror else f"{dir_name}.gif"
     output_path = os.path.join(output_dir, gif_name)
 
     # Save GIF
@@ -92,18 +89,13 @@ def create_gif(folder, duration = 100, loop = 0, output_dir = None, mirror= Fals
 if __name__ =="__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description="Create GIF animations from image folders.")
-    parser.add_argument("directory", nargs="?", default=".", help="Target directory")
+    parser = argparse.ArgumentParser(description="Create GIF animations from image directories.")
     parser.add_argument("--duration", type=int, default=124, help="Frame duration in ms (default: 100)")
     parser.add_argument("--loop", type=int, default=0, help="Loop count, 0 = infinite (default: 0)") # for looping
     parser.add_argument("--output", default=None, help="Output directory for GIFs")
-    parser.add_argument("--folder", default=None, help="Process a single folder only")
-    parser.add_argument("--mirror", action="store_true", help="Rotate frames 180° and save as {folder}-mirror.gif")
+    parser.add_argument("--directory", default=None, help="Process a single directory only")
+    parser.add_argument("--mirror", action="store_true", help="Rotate frames 180° and save as {directory}-mirror.gif")
 
     args = parser.parse_args()
 
-    create_gif(args.folder, duration=args.duration, output_dir=args.output, mirror=args.mirror)
-
-    
-
-
+    create_gif(args.directory, duration=args.duration, output_dir=args.output, mirror=args.mirror)
