@@ -35,3 +35,7 @@ python main.py
 | Release           | Drop — pet falls with gravity    |
 | Right-click       | Open context menu.               |
 | Quit (menu)       | Plays death animation then exits |
+
+## Generate exe file:
+
+pyinstaller --onefile --windowed --icon=icon.ico --add-data "assets:assets" main.py;

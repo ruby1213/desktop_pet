@@ -1,9 +1,16 @@
 import sys
+import os
 import random
 from enum import Enum, auto
 from PyQt6.QtWidgets import QApplication, QLabel, QMenu
 from PyQt6.QtCore import Qt, QPoint, QTimer
 from PyQt6.QtGui import QMovie, QAction, QPixmap, QPainter
+
+
+def resource_path(relative_path):
+    """Resolve asset paths for both dev and PyInstaller bundle."""
+    base = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(base, relative_path)
 
 
 # ---------------------------------------------------------------------------
@@ -28,23 +35,23 @@ PET_START_Y         = 300
 
 # GIF animations (QMovie)
 ANIMATION_MAP = {
-    "idle":          "./assets/idle_left.gif",
-    "idle_left":     "./assets/idle_left.gif",
-    "idle_right":    "./assets/idle_right.gif",
-    "walk_to_left":  "./assets/walk_to_left.gif",
-    "walk_to_right": "./assets/walk_to_right.gif",
-    "falling":       "./assets/fall_left.gif",
-    "fall_left":     "./assets/fall_left.gif",
-    "fall_right":    "./assets/fall_right.gif",
-    "die":           "./assets/die.gif",
-    "dragged":       "./assets/drag.gif",
-    "dropped":       "./assets/drop.gif",
+    "idle":          resource_path("assets/idle_left.gif"),
+    "idle_left":     resource_path("assets/idle_left.gif"),
+    "idle_right":    resource_path("assets/idle_right.gif"),
+    "walk_to_left":  resource_path("assets/walk_to_left.gif"),
+    "walk_to_right": resource_path("assets/walk_to_right.gif"),
+    "falling":       resource_path("assets/fall_left.gif"),
+    "fall_left":     resource_path("assets/fall_left.gif"),
+    "fall_right":    resource_path("assets/fall_right.gif"),
+    "die":           resource_path("assets/die.gif"),
+    "dragged":       resource_path("assets/drag.gif"),
+    "dropped":       resource_path("assets/drop.gif"),
 }
 
 # Static images (QPixmap)
 STATIC_MAP = {
-    "dragged": "./assets/drag.png",
-    "dropped": "./assets/drop.png",
+    "dragged": resource_path("assets/drag.png"),
+    "dropped": resource_path("assets/drop.png"),
 }
 
 FALLBACK_ANIMATION = "walk_to_right"
