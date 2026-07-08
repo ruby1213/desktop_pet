@@ -18,7 +18,7 @@ def resource_path(relative_path):
 # ---------------------------------------------------------------------------
 GRAVITY             = 1
 MAX_FALL_SPEED      = 20
-FLOOR_MARGIN        = 70
+FLOOR_MARGIN        = 90
 PHYSICS_INTERVAL_MS = 25        # ~60 fps
 WALK_SPEED          = 1         # px per frame while walking
 PAUSE_INTERVAL_MIN  = 2000      # ms — min time walking before a random pause
@@ -111,7 +111,7 @@ class DesktopPet(QLabel):
     def setup_window(self):
         """設定視窗：無邊框、透明、永遠在最上層"""
         self.setWindowFlags(
-            Qt.WindowType.FramelessWindowHint  |
+            # Qt.WindowType.FramelessWindowHint  |
             Qt.WindowType.WindowStaysOnTopHint |
             Qt.WindowType.Tool
             
